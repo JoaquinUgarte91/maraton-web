@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Panel</title>
+  <link rel="stylesheet" href="Inicio.css" />
+  <!-- Iconos de Font Awesome (opcional) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+</head>
+<body>
+
+  <aside class="sidebar">
+    <div class="sidebar-logo">Admin</div>
+    <nav class="sidebar-nav">
+      <a href="#" class="nav-item"><i class="fas fa-home"></i> Dashboard</a>
+      <a href="#" class="nav-item"><i class="fas fa-inbox"></i> Usuarios registrados</a>
+      <a href="#" class="nav-item"><i class="fas fa-image"></i> Maratones</a>
+      <a href="#" class="nav-item"><i class="fas fa-chart-area"></i> Charts</a>
+      <a href="#" class="nav-item"><i class="fas fa-code"></i> Short Codes</a>
+      <a href="#" class="nav-item"><i class="fas fa-exclamation-circle"></i> Error Page</a>
+      <a href="#" class="nav-item"><i class="fas fa-table"></i> Tables</a>
+      <a href="#" class="nav-item"><i class="fas fa-map"></i> Maps</a>
+      <a href="#" class="nav-item"><i class="fas fa-file-alt"></i> Pages</a>
+      <a href="#" class="nav-item"><i class="fas fa-pen"></i> Forms</a>
+    </nav>
+  </aside>
+
+  <main class="main-content" id="main-content">
+    <h1>Bienvenido al Panel de Administración</h1>
+  </main>
+
+  <script>
+  // Datos de ejemplo hardcodeados
+  const usuarios = [
+    { nombre: "Ana", apellido: "González", email: "ana@example.com", distancia: "10km" },
+    { nombre: "Luis", apellido: "Pérez", email: "luis@example.com", distancia: "5km" },
+    { nombre: "María", apellido: "Rodríguez", email: "maria@example.com", distancia: "21km" },
+  ];
+
+  // Evento click para mostrar usuarios
+  document.querySelector('.nav-item:nth-child(2)').addEventListener('click', function (e) {
+    e.preventDefault();
+    const main = document.getElementById('main-content');
+
+    // Construcción dinámica de la tabla
+    let html = `
+      <h2>Usuarios Registrados</h2>
+      <table border="1" cellpadding="10">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Apellido</th>
+            <th>Email</th>
+            <th>Distancia</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    usuarios.forEach(usuario => {
+      html += `
+        <tr>
+          <td>${usuario.nombre}</td>
+          <td>${usuario.apellido}</td>
+          <td>${usuario.email}</td>
+          <td>${usuario.distancia}</td>
+        </tr>
+      `;
+    });
+
+    html += `
+        </tbody>
+      </table>
+    `;
+
+    main.innerHTML = html;
+  });
+</script>
+
+
+</body>
+</html>
