@@ -5,27 +5,29 @@
 }
 
 body {
-    font-family: Arial, sans-serif;
-    background-image: url('../img/WhatsApp\ Image\ 2024-02-23\ at\ 15.25.10.jpeg'); /* imagen en la misma carpeta */
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    margin: 0;
+  font-family: Arial, sans-serif;
+  background: url('/maraton/img/maraton.jpeg?v=1') center / cover no-repeat fixed;
+  min-height: 100vh;
+  margin: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 
-.login-container {
-    background-color: #fff;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    width: 300px;
-    text-align: center;
+.login-container{
+  background: rgba(255,255,255,0.75);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px); /* Safari */
+  border: 1px solid rgba(255,255,255,0.4);
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.12);
+  width: 320px;
+  max-width: 92vw;
+  text-align: center;
 }
+
 
 h2 {
     margin-bottom: 20px;

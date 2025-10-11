@@ -4,8 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Admin Panel</title>
-  <link rel="stylesheet" href="Inicio.css" />
-  <!-- Iconos de Font Awesome (opcional) -->
+  <link rel="stylesheet" href="inicio.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
 </head>
 <body>
@@ -13,8 +12,8 @@
   <aside class="sidebar">
     <div class="sidebar-logo">Admin</div>
     <nav class="sidebar-nav">
-      <a href="#" class="nav-item"><i class="fas fa-home"></i> Dashboard</a>
-      <a href="#" class="nav-item"><i class="fas fa-inbox"></i> Usuarios registrados</a>
+      <a href="#" class="nav-item" id="menu-dashboard"><i class="fas fa-home"></i> Dashboard</a>
+      <a href="#" class="nav-item" id="menu-usuarios"><i class="fas fa-inbox"></i> Usuarios registrados</a>
       <a href="#" class="nav-item"><i class="fas fa-image"></i> Maratones</a>
       <a href="#" class="nav-item"><i class="fas fa-chart-area"></i> Charts</a>
       <a href="#" class="nav-item"><i class="fas fa-code"></i> Short Codes</a>
@@ -31,53 +30,252 @@
   </main>
 
   <script>
-  // Datos de ejemplo hardcodeados
-  const usuarios = [
-    { nombre: "Ana", apellido: "González", email: "ana@example.com", distancia: "10km" },
-    { nombre: "Luis", apellido: "Pérez", email: "luis@example.com", distancia: "5km" },
-    { nombre: "María", apellido: "Rodríguez", email: "maria@example.com", distancia: "21km" },
-  ];
+    // Endpoint de tu API
+    const LISTAR_URL = '/maraton/api/listar_inscripciones.php';
 
-  // Evento click para mostrar usuarios
-  document.querySelector('.nav-item:nth-child(2)').addEventListener('click', function (e) {
-    e.preventDefault();
-    const main = document.getElementById('main-content');
+    // Guarda el filtro actual (para exportar respetando la búsqueda)
+    let filtroActual = { q: '', sort: 'fecha_inscripcion', order: 'desc' };
 
-    // Construcción dinámica de la tabla
-    let html = `
-      <h2>Usuarios Registrados</h2>
-      <table border="1" cellpadding="10">
-        <thead>
-          <tr>
-            <th>Nombre</th>
-            <th>Apellido</th>
-            <th>Email</th>
-            <th>Distancia</th>
-          </tr>
-        </thead>
-        <tbody>
-    `;
+    async function cargarInscripciones({ q = '', page = 1, pageSize = 20 } = {}) {
+      const main = document.getElementById('main-content');
+      const offset = (page - 1) * pageSize;
+      filtroActual.q = q; // actualizar búsqueda actual
 
-    usuarios.forEach(usuario => {
-      html += `
-        <tr>
-          <td>${usuario.nombre}</td>
-          <td>${usuario.apellido}</td>
-          <td>${usuario.email}</td>
-          <td>${usuario.distancia}</td>
-        </tr>
+      main.innerHTML = `
+        <h2>Usuarios Registrados</h2>
+        <p>Cargando...</p>
       `;
+
+      try {
+        const url = `${LISTAR_URL}?limit=${pageSize}&offset=${offset}&q=${encodeURIComponent(q)}&sort=${filtroActual.sort}&order=${filtroActual.order}`;
+        const res = await fetch(url);
+        const ct = res.headers.get('content-type') || '';
+        const data = ct.includes('application/json') ? await res.json()
+                                                     : { success:false, message: await res.text() };
+        if (!res.ok || !data.success) throw new Error(data.message || 'No se pudo obtener inscripciones');
+
+        const filas = (data.items || []).map(u => `
+          <tr>
+            <td>${esc(u.nombre)}</td>
+            <td>${esc(u.dni)}</td>
+            <td>${esc(u.email)}</td>
+            <td>${esc(u.carrera)}</td>
+            <td>${formatearFecha(u.fecha_inscripcion)}</td>
+          </tr>
+        `).join('');
+
+        main.innerHTML = `
+          <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap">
+            <h2 style="margin:0">Usuarios Registrados</h2>
+            <input id="buscar" type="search" placeholder="Buscar por nombre/DNI/email"
+                   style="padding:8px; border-radius:8px; border:1px solid #ddd; min-width:260px" value="${esc(q)}"/>
+            <button id="exportarCsv" type="button"
+                    style="padding:8px 12px; border-radius:8px; border:1px solid #ddd; background:#fff; cursor:pointer">
+              Exportar CSV
+            </button>
+            <span style="opacity:.7">Total: ${data.total}</span>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>DNI</th>
+                <th>Email</th>
+                <th>Distancia</th>
+                <th>Fecha inscripción</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filas || `<tr><td colspan="5" style="text-align:center; padding:20px;">Sin datos</td></tr>`}
+            </tbody>
+          </table>
+        `;
+
+        // Buscar
+        const $buscar = document.getElementById('buscar');
+        $buscar.addEventListener('change', () =>
+          cargarInscripciones({ q: $buscar.value, page: 1, pageSize })
+        );
+
+        // Exportar CSV (trae todas las páginas con el filtro actual)
+        document.getElementById('exportarCsv').addEventListener('click', () => exportarCSV({ q: filtroActual.q }));
+
+      } catch (err) {
+        main.innerHTML = `
+          <h2>Usuarios Registrados</h2>
+          <p style="color:#b00020">Error: ${esc(err.message)}</p>
+        `;
+      }
+    }
+
+    // ========= Exportar CSV =========
+    async function exportarCSV({ q = '' } = {}) {
+      try {
+        const pageSize = 200; // máximo permitido por tu API
+        let page = 1, items = [], total = 0;
+
+        do {
+          const url = `${LISTAR_URL}?limit=${pageSize}&offset=${(page-1)*pageSize}&q=${encodeURIComponent(q)}&sort=${filtroActual.sort}&order=${filtroActual.order}`;
+          const res = await fetch(url);
+          const ct = res.headers.get('content-type') || '';
+          const data = ct.includes('application/json') ? await res.json()
+                                                       : { success:false, message: await res.text() };
+          if (!res.ok || !data.success) throw new Error(data.message || 'Error al obtener datos');
+          items = items.concat(data.items || []);
+          total = data.total || 0;
+          page++;
+        } while (items.length < total);
+
+        const csv = construirCSV(items);
+        descargarArchivo(csv, `inscripciones${q ? '_'+limpiarNombre(q) : ''}_${hoyYYYYMMDD()}.csv`);
+      } catch (e) {
+        alert('No se pudo exportar: ' + e.message);
+      }
+    }
+
+    function construirCSV(items) {
+      const header = ['Nombre','DNI','Email','Carrera','Fecha_inscripcion'];
+      const filas = items.map(u => [
+        u.nombre ?? '',
+        u.dni ?? '',
+        u.email ?? '',
+        u.carrera ?? '',
+        formatearFechaISO(u.fecha_inscripcion)
+      ].map(csvEscape).join(','));
+      // BOM para que Excel reconozca UTF-8
+      return '\uFEFF' + header.join(',') + '\r\n' + filas.join('\r\n');
+    }
+
+    function descargarArchivo(contenido, nombre) {
+      const blob = new Blob([contenido], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = nombre;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    // ========= Utilidades =========
+    function formatearFecha(fecha) {
+      const d = new Date(fecha);
+      return isNaN(d) ? '' : d.toLocaleString();
+    }
+    function formatearFechaISO(fecha) {
+      const d = new Date(fecha);
+      if (isNaN(d)) return '';
+      const pad = n => String(n).padStart(2,'0');
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    }
+    function csvEscape(v) {
+      const s = String(v ?? '');
+      return /[",\n\r]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
+    }
+    function hoyYYYYMMDD() {
+      const d = new Date(); const p=n=>String(n).padStart(2,'0');
+      return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+    }
+    function limpiarNombre(s) {
+      return String(s).replace(/[^a-z0-9_-]+/gi,'_').slice(0,40);
+    }
+    function esc(s) {
+      const div = document.createElement('div');
+      div.textContent = s ?? '';
+      return div.innerHTML;
+    }
+
+    // Menú → "Usuarios registrados"
+    document.getElementById('menu-usuarios').addEventListener('click', (e) => {
+      e.preventDefault();
+      cargarInscripciones();
     });
 
-    html += `
-        </tbody>
-      </table>
-    `;
+    // ====== estilos mínimos para el dashboard (cards/tabla) ======
+(function addDashStyles(){
+  if (document.getElementById('dash-styles')) return;
+  const css = `
+  .kpis{display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:16px;margin:0 0 16px 0}
+  .kpi{background:#fff;border-radius:12px;box-shadow:0 2px 6px rgba(0,0,0,.08);padding:16px}
+  .kpi .label{opacity:.7;font-size:13px}
+  .kpi .value{font-size:24px;font-weight:700;margin-top:6px}
+  .card{background:#fff;border-radius:12px;box-shadow:0 2px 6px rgba(0,0,0,.08);overflow:hidden;margin-top:16px}
+  .card .header{padding:12px 16px;border-bottom:1px solid #eee;font-weight:600}
+  .card .content{padding:16px}
+  table.simple{width:100%;border-collapse:collapse}
+  table.simple th, table.simple td{padding:10px 12px;border:1px solid #eee;text-align:left}
+  table.simple th{background:#2f323a;color:#fff}
+  @media (max-width:1000px){ .kpis{grid-template-columns:repeat(2,1fr)} }
+  `;
+  const s=document.createElement('style'); s.id='dash-styles'; s.textContent=css;
+  document.head.appendChild(s);
+})();
 
-    main.innerHTML = html;
-  });
-</script>
+// ====== DASHBOARD HARDCODEADO ======
+function renderDashboard(){
+  const main = document.getElementById('main-content');
 
+  // Datos de muestra (editá lo que quieras)
+  const DEMO = {
+    total: 342, k5: 210, k2: 132, hoy: 8,
+    ultimas: [
+      { nombre:'Ana González', dni:'12345678', email:'ana@example.com', carrera:'5K', fecha:'2025-09-20 10:21:00' },
+      { nombre:'Luis Pérez',   dni:'23456789', email:'luis@example.com', carrera:'2K', fecha:'2025-09-20 09:15:10' },
+      { nombre:'María Rodríguez', dni:'34567890', email:'maria@example.com', carrera:'5K', fecha:'2025-09-19 18:03:34' },
+    ]
+  };
 
+  main.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+      <h2 style="margin:0">Dashboard (demo)</h2>
+      <span style="opacity:.7;font-size:12px">Actualizado: ${hoyYYYYMMDD()}</span>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi"><div class="label"><i class="fas fa-users"></i> Total</div><div class="value">${DEMO.total}</div></div>
+      <div class="kpi"><div class="label"><i class="fas fa-running"></i> 5K</div><div class="value">${DEMO.k5}</div></div>
+      <div class="kpi"><div class="label"><i class="fas fa-shoe-prints"></i> 2K</div><div class="value">${DEMO.k2}</div></div>
+      <div class="kpi"><div class="label"><i class="far fa-calendar-check"></i> Hoy</div><div class="value">${DEMO.hoy}</div></div>
+    </div>
+
+    <div class="card">
+      <div class="header">Últimas inscripciones</div>
+      <div class="content">
+        <table class="simple">
+          <thead><tr><th>Nombre</th><th>DNI</th><th>Email</th><th>Distancia</th><th>Fecha</th></tr></thead>
+          <tbody>
+            ${DEMO.ultimas.map(u=>`
+              <tr>
+                <td>${esc(u.nombre)}</td>
+                <td>${esc(u.dni)}</td>
+                <td>${esc(u.email)}</td>
+                <td>${esc(u.carrera)}</td>
+                <td>${formatearFecha(u.fecha)}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+// helper para fecha de hoy (reusa tu estilo)
+function hoyYYYYMMDD(){
+  const d=new Date(),p=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+}
+
+// Click del menú Dashboard → render demo
+document.querySelector('#menu-dashboard')?.addEventListener('click', (e)=>{
+  e.preventDefault();
+  renderDashboard();
+});
+
+// (opcional) mostrar dashboard al cargar la página
+document.addEventListener('DOMContentLoaded', renderDashboard);
+
+  </script>
 </body>
 </html>

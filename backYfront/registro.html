@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Maratón Ituzaingó</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <a href="https://www.miituzaingo.gov.ar/" class="logo">
+        <img src="imagenes/logo.png" alt="Logo Municipalidad de Ituzaingó" />
+      </a>
+    </div>
+    <nav>
+      <ul>
+        <li><a href="#inicio">Inicio</a></li>
+        <li><a href="#fecha">Guardar Fecha</a></li>
+        <li><a href="#contactos">Contactos</a></li>
+        <li><a href="#form-section">Inscribirse</a></li>
+        <li><a href="#redes">Redes</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <!-- Hero -->
+  <section class="hero" id="inicio">
+    <div class="hero-text">
+      <h1>¿Listos para una nueva aventura?</h1>
+    </div>
+    <div class="hero-info">
+      <p>
+        Enfrenta cada día con la certeza de que tienes el poder de transformar tus sueños en realidad. 
+        Aunque el camino pueda parecer desafiante, recuerda que cada paso que das te acerca más a tus metas.
+      </p>
+      <button onclick="document.getElementById('form-section').scrollIntoView({behavior: 'smooth'})">Inscribirse</button>
+    </div>
+    <div class="arrow-down">&#9660;</div>
+  </section>
+
+  <!-- Pasos -->
+  <section class="pasos">
+    <div class="paso">
+      <span>1</span>
+      <h4>Inscripción</h4>
+      <p>Completar el formulario con los datos correspondientes</p>
+    </div>
+    <div class="paso">
+      <span>2</span>
+      <h4>Tu QR</h4>
+      <p>Se te va a asignar un QR que vas a tener que llevar al momento de retirar tu kit de maratón</p>
+    </div>
+    <div class="paso">
+      <span>3</span>
+      <h4>Documentación</h4>
+      <p>El día del evento presentar la declaración jurada de aptitud física <a href="#documentacion">AQUÍ</a></p>
+    </div>
+    <div class="paso">
+      <span>4</span>
+      <h4>Guardar fecha</h4>
+      <p>Guardar la fecha con un recordatorio en tu calendario <a href="#fecha">AQUÍ</a></p>
+    </div>
+  </section>
+
+  <!-- Introducción -->
+  <section class="intro">
+    <h2>¿Qué motiva esta maratón?</h2>
+    <p>
+      La Maratón Ituzaingó nace con el objetivo de promover la vida saludable y el deporte en la comunidad.
+      Queremos crear un espacio donde todos puedan participar, sin importar su nivel de condición física,
+      y experimentar los beneficios físicos y mentales que ofrece el running.
+    </p>
+    <p>
+      Este evento anual busca unir a vecinos, familias y amigos en una jornada de deporte y convivencia,
+      fomentando valores como la perseverancia, el esfuerzo y el compañerismo.
+    </p>
+    <button onclick="document.getElementById('form-section').scrollIntoView({behavior: 'smooth'})">Más información</button>
+  </section>
+
+  <!-- Sección de Fecha -->
+  <section class="fecha-section" id="fecha">
+    <div class="container">
+      <h2>¡Guarda la Fecha!</h2>
+      <div class="fecha-info">
+        <div class="fecha-card">
+          <h3>12 de Noviembre, 2023</h3>
+          <p>9:00 AM - Punto de encuentro: Plaza Central de Ituzaingó</p>
+          <button class="btn-calendario" onclick="agregarACalendario()">Agregar a mi calendario</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Formulario -->
+  <section class="form-section" id="form-section">
+    <h2>Formulario de Inscripción</h2>
+    
+    <form id="formulario">
+      <div class="form-group">
+        <label for="nombre">Nombre y Apellido:</label>
+        <input type="text" id="nombre" name="nombre" required>
+        <div class="error-message" id="nombre-error"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="dni">DNI:</label>
+        <input type="text" id="dni" name="dni" required pattern="\d{7,8}" title="Por favor ingrese un DNI válido (7 u 8 dígitos)">
+        <div class="error-message" id="dni-error"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="email">Correo electrónico:</label>
+        <input type="email" id="email" name="email" required>
+        <div class="error-message" id="email-error"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="carrera">Tipo de carrera:</label>
+        <select id="carrera" name="carrera" required>
+          <option value="">-- Seleccioná una opción --</option>
+          <option value="5K">5K</option>
+          <option value="2K">2K</option>
+        </select>
+        <div class="error-message" id="carrera-error"></div>
+      </div>
+
+      <button type="submit" id="submit-btn">Inscribirse</button>
+    </form>
+
+    <div class="loading hidden" id="loading">
+      <div class="loading-spinner"></div>
+      <p>Procesando tu inscripción...</p>
+    </div>
+
+    <div id="qr-container" class="hidden">
+      <h3>¡Inscripción exitosa!</h3>
+      <p>Tu código QR para retirar el kit:</p>
+      <div id="qr"></div>
+      <button id="download-btn">Descargar QR</button>
+    </div>
+  </section>
+
+  <!-- Contactos -->
+  <section class="contactos" id="contactos">
+    <h2>Contactos</h2>
+    <div class="contactos-container">
+      <div class="contacto-card">
+        <h3>Informes</h3>
+        <p>maraton@ituzaingo.gov.ar</p>
+        <p>Tel: 4627-1234</p>
+      </div>
+      <div class="contacto-card">
+        <h3>Departamento de Deportes</h3>
+        <p>deportes@ituzaingo.gov.ar</p>
+        <p>Tel: 4627-5678</p>
+      </div>
+      <div class="contacto-card">
+        <h3>Atención al Corredor</h3>
+        <p>Lunes a Viernes 9:00 a 16:00</p>
+        <p>Peatonal Eva Perón 848</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Redes -->
+  <section class="redes" id="redes">
+    <h2>Seguinos en nuestras redes</h2>
+    <div class="redes-sociales">
+      <a href="#" class="red-social">Facebook</a>
+      <a href="#" class="red-social">Instagram</a>
+      <a href="#" class="red-social">Twitter</a>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <p>Municipalidad de Ituzaingó © 2023 - Todos los derechos reservados</p>
+  </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
