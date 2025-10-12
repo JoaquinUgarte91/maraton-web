@@ -13,8 +13,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const validPassword = '123456';
 
     if (username === validUsername && password === validPassword) {
-      // Ruta ABSOLUTA al panel
-      location.assign(`${location.origin}/maraton/adminInicio/inicio.html`);
+      location.assign('adminInicio/inicio.html'); // ruta relativa desde public_html
+
     } else {
       document.getElementById('error-message').textContent =
         'Usuario o contraseña incorrectos';
