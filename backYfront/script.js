@@ -128,7 +128,7 @@ function manejarEnvioFormulario(e) {
 }
 
 async function enviarDatosAlServidor(datos) {
-  const API_URL = '/maraton/api/procesar.php'; // ruta ABSOLUTA a tu endpoint PHP
+  const API_URL = '/api/procesar.php'; // ruta ABSOLUTA a tu endpoint PHP
 
   try {
     const res = await fetch(API_URL, {
