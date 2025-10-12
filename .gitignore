@@ -1,3 +1,6 @@
+api/config.local.php
+api/config.server.php
+
 # Sistema / editores
 .DS_Store
 Thumbs.db
