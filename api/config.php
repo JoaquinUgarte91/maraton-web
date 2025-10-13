@@ -1,18 +1,18 @@
 <?php
-// Defaults “inofensivos” (DEV). NO pongas root ni pass reales acá.
+// Defaults inocuos
 $DB_HOST = 'localhost';
 $DB_NAME = '';
 $DB_USER = '';
 $DB_PASS = '';
 
-// Override del servidor (Hostinger): archivo NO versionado
-if (file_exists(__DIR__ . '/config.server.php')) {
-  require __DIR__ . '/config.server.php';
+// Override servidor (NO versionado)
+if (file_exists(__DIR__.'/config.server.php')) {
+  require __DIR__.'/config.server.php';
 }
 
-// Override local (XAMPP): archivo NO versionado
-if (file_exists(__DIR__ . '/config.local.php')) {
-  require __DIR__ . '/config.local.php';
+// Override local (NO versionado)
+if (file_exists(__DIR__.'/config.local.php')) {
+  require __DIR__.'/config.local.php';
 }
 
 function pdo_conn(): PDO {
