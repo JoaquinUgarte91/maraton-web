@@ -1,25 +1,26 @@
 <?php
-// ⚠️ Poné acá lo MISMO que ya te funciona en listar_inscripciones.php
+// Defaults “inofensivos” (DEV). NO pongas root ni pass reales acá.
 $DB_HOST = 'localhost';
-$DB_NAME = 'maraton_db';
-
-// XAMPP por defecto:
-$DB_USER = 'root';
+$DB_NAME = '';
+$DB_USER = '';
 $DB_PASS = '';
 
-// Si ya creaste un usuario propio, usalo en lugar del root:
-// $DB_USER = 'usuario_maraton';
-// $DB_PASS = 'contraseña_segura';
+// Override del servidor (Hostinger): archivo NO versionado
+if (file_exists(__DIR__ . '/config.server.php')) {
+  require __DIR__ . '/config.server.php';
+}
 
-function pdo_conn() {
+// Override local (XAMPP): archivo NO versionado
+if (file_exists(__DIR__ . '/config.local.php')) {
+  require __DIR__ . '/config.local.php';
+}
+
+function pdo_conn(): PDO {
   global $DB_HOST, $DB_NAME, $DB_USER, $DB_PASS;
-  return new PDO(
-    "mysql:host=$DB_HOST;dbname=$DB_NAME;charset=utf8mb4",
-    $DB_USER,
-    $DB_PASS,
-    [
-      PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-      PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    ]
-  );
+  $dsn = "mysql:host={$DB_HOST};dbname={$DB_NAME};charset=utf8mb4";
+  return new PDO($dsn, $DB_USER, $DB_PASS, [
+    PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+    PDO::ATTR_EMULATE_PREPARES   => false,
+  ]);
 }

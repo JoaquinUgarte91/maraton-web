@@ -1,5 +1,5 @@
-api/config.local.php
-api/config.server.php
+/public_html/api/config.server.php
+/public_html/api/config.local.php
 
 # Sistema / editores
 .DS_Store
