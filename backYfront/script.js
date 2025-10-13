@@ -113,12 +113,11 @@ function manejarEnvioFormulario(e) {
         return;
     }
     
-    // Obtener los valores del formulario
     // Obtener los valores del formulario (normalizados)
-        const nombre  = document.getElementById('nombre').value.trim();
-        const dni     = document.getElementById('dni').value.replace(/\D+/g, ''); // solo dígitos
-        const email   = document.getElementById('email').value.trim();
-        const carrera = document.getElementById('carrera').value.toUpperCase();   // "2K"/"5K"
+    const nombre  = document.getElementById('nombre').value.trim();
+    const dni     = document.getElementById('dni').value.replace(/\D+/g, ''); // solo dígitos
+    const email   = document.getElementById('email').value.trim();
+    const carrera = document.getElementById('carrera').value.toUpperCase();   // "2K"/"5K"
 
     // Mostrar estado de carga
     mostrarCarga(true);
@@ -159,6 +158,15 @@ async function enviarDatosAlServidor(datos) {
     generarQR(qrData);
     mostrarMensaje('¡Inscripción exitosa! Tu QR ha sido generado.', 'success');
 
+    // Enviar el QR por email (PNG capturado del canvas)
+    enviarQrPorEmail({
+      email: datos.email,
+      nombre: datos.nombre,
+      dni: datos.dni,
+      carrera: datos.carrera,
+      qrTexto: qrData
+    });
+
     // (Opcional) limpiar formulario
     document.getElementById('formulario').reset();
 
@@ -167,7 +175,6 @@ async function enviarDatosAlServidor(datos) {
     mostrarMensaje(`Error de red: ${err.message}`, 'error');
   }
 }
-
 
 function mostrarCarga(mostrar) {
     const loadingElement = document.getElementById('loading');
@@ -204,6 +211,40 @@ function generarQR(datos) {
     
     // Hacer scroll suave al QR
     qrContainer.scrollIntoView({ behavior: 'smooth' });
+}
+
+// Enviar el QR generado (canvas) por email al backend
+async function enviarQrPorEmail({ email, nombre, dni, carrera, qrTexto }) {
+  try {
+    const canvas = document.querySelector('#qr canvas');
+    if (!canvas) {
+      console.warn('No se encontró el canvas del QR.');
+      return;
+    }
+    const qrPngDataUrl = canvas.toDataURL('image/png'); // "data:image/png;base64,..."
+
+    const res = await fetch('/api/enviar_qr.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email, nombre, dni, carrera,
+        qr_png: qrPngDataUrl,
+        qr_texto: qrTexto
+      })
+    });
+
+    const ct = res.headers.get('content-type') || '';
+    const payload = ct.includes('application/json') ? await res.json()
+                 : { success:false, message: await res.text() };
+
+    if (!res.ok || !payload.success) {
+      console.warn('No se pudo enviar el email con el QR:', payload.message || res.status);
+    } else {
+      console.log('Email con QR enviado a', email);
+    }
+  } catch (err) {
+    console.warn('Error al enviar email QR:', err);
+  }
 }
 
 function guardarInscripcion(datos) {
