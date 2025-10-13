@@ -1,4 +1,6 @@
 <?php
+// /public_html/api/enviar_qr.php
+
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
@@ -11,67 +13,78 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
   exit;
 }
 
+// ======== CONFIGURA ESTO ========
+$FROM_EMAIL = 'no-reply@peachpuff-pheasant-847443.hostingersite.com'; // o un correo propio del dominio
+$FROM_NAME  = 'Maratón Ituzaingó';
+$SUBJECT    = 'Tu QR de inscripción - Maratón Ituzaingó';
+// =================================
+
+// Leer JSON
 $input = json_decode(file_get_contents('php://input'), true) ?: [];
-$email   = trim($input['email']   ?? '');
-$nombre  = trim($input['nombre']  ?? '');
-$dni     = trim($input['dni']     ?? '');
-$carrera = trim($input['carrera'] ?? '');
-$qr_png  = $input['qr_png']       ?? '';
+$to       = trim($input['to']   ?? '');
+$name     = trim($input['name'] ?? '');
+$dni      = trim($input['dni']  ?? '');
+$carrera  = trim($input['carrera'] ?? '');
+$dataUrl  = $input['qr_png_base64'] ?? '';
 
-if (!$email || !$qr_png) {
+if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
   http_response_code(400);
-  echo json_encode(['success'=>false,'message'=>'Faltan email o qr_png']);
+  echo json_encode(['success'=>false,'message'=>'Email destino inválido']);
+  exit;
+}
+if (!preg_match('#^data:image/(png|gif|jpeg);base64,#i', $dataUrl)) {
+  http_response_code(400);
+  echo json_encode(['success'=>false,'message'=>'QR inválido (base64)']);
   exit;
 }
 
-// quitar cabecera data:image/png;base64,
-if (strpos($qr_png, 'base64,') !== false) {
-  $qr_png = substr($qr_png, strpos($qr_png, 'base64,') + 7);
-}
-$png_bin = base64_decode($qr_png);
-if ($png_bin === false) {
+// Extraer y decodificar base64
+$base64 = preg_replace('#^data:image/\w+;base64,#i', '', $dataUrl);
+$binary = base64_decode($base64, true);
+if ($binary === false) {
   http_response_code(400);
-  echo json_encode(['success'=>false,'message'=>'PNG inválido']);
+  echo json_encode(['success'=>false,'message'=>'No se pudo decodificar el QR']);
   exit;
 }
 
-// -------- email usando mail() + adjunto MIME --------
-$to       = $email;
-$subject  = 'Tu código QR de inscripción';
-$from     = 'no-reply@TU-DOMINIO.COM';   // <-- CAMBIA ESTO por una casilla válida del dominio
-$fromName = 'Maratón Ituzaingó';
-$boundary = md5(uniqid(time(), true));
+// Armar cuerpo simple
+$bodyText = "¡Gracias por inscribirte!\n\n".
+            "Nombre: {$name}\n".
+            "DNI: {$dni}\n".
+            "Carrera: {$carrera}\n\n".
+            "Adjuntamos tu QR para presentar al retirar el kit.";
 
-$headers  = "From: $fromName <$from>\r\n";
-$headers .= "MIME-Version: 1.0\r\n";
-$headers .= "Content-Type: multipart/mixed; boundary=\"{$boundary}\"\r\n";
+// Construir email MIME con adjunto
+$boundary = 'b'.md5(uniqid('', true));
+$headers  = [];
+$headers[] = "From: {$FROM_NAME} <{$FROM_EMAIL}>";
+$headers[] = "MIME-Version: 1.0";
+$headers[] = "Content-Type: multipart/mixed; boundary=\"{$boundary}\"";
 
-$bodyText = "Hola {$nombre},\r\n\r\n"
-          . "¡Gracias por inscribirte a la maratón!\r\n\r\n"
-          . "Datos:\r\n"
-          . "- DNI: {$dni}\r\n"
-          . "- Distancia: {$carrera}\r\n\r\n"
-          . "Adjuntamos tu código QR para retirar el kit.\r\n";
+$filename = "qr_ituzaingo.png";
+$attachment = chunk_split(base64_encode($binary));
 
-$body  = "--{$boundary}\r\n";
-$body .= "Content-Type: text/plain; charset=\"utf-8\"\r\n";
-$body .= "Content-Transfer-Encoding: 7bit\r\n\r\n";
-$body .= $bodyText . "\r\n";
+$message =
+"--{$boundary}\r\n".
+"Content-Type: text/plain; charset=UTF-8\r\n".
+"Content-Transfer-Encoding: 8bit\r\n\r\n".
+$bodyText."\r\n\r\n".
+"--{$boundary}\r\n".
+"Content-Type: image/png; name=\"{$filename}\"\r\n".
+"Content-Transfer-Encoding: base64\r\n".
+"Content-Disposition: attachment; filename=\"{$filename}\"\r\n\r\n".
+$attachment."\r\n".
+"--{$boundary}--\r\n";
 
-// adjunto
-$filename = "qr_inscripcion_{$dni}.png";
-$body .= "--{$boundary}\r\n";
-$body .= "Content-Type: image/png; name=\"{$filename}\"\r\n";
-$body .= "Content-Transfer-Encoding: base64\r\n";
-$body .= "Content-Disposition: attachment; filename=\"{$filename}\"\r\n\r\n";
-$body .= chunk_split(base64_encode($png_bin)) . "\r\n";
-$body .= "--{$boundary}--";
+// Importante para Return-Path (mejor deliverability)
+$extra = "-f{$FROM_EMAIL}";
 
-$ok = @mail($to, $subject, $body, $headers);
+$ok = @mail($to, $SUBJECT, $message, implode("\r\n", $headers), $extra);
 
-if ($ok) {
-  echo json_encode(['success'=>true,'message'=>'Email enviado']);
-} else {
+if (!$ok) {
   http_response_code(500);
-  echo json_encode(['success'=>false,'message'=>'No se pudo enviar el email (mail() falló).']);
+  echo json_encode(['success'=>false,'message'=>'No se pudo enviar el correo (mail() falló)']);
+  exit;
 }
+
+echo json_encode(['success'=>true]);
