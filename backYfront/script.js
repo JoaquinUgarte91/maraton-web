@@ -1,5 +1,5 @@
 // Función para inicializar cuando el DOM esté listo
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
   inicializarApp();
 });
 
@@ -20,11 +20,12 @@ function inicializarApp() {
   }
 }
 
-// Validación en tiempo real
+// =========================
+// Helpers: validación
+// =========================
 function inicializarValidacionEnTiempoReal() {
   const campos = ['nombre', 'dni', 'email', 'carrera'];
-
-  campos.forEach(campo => {
+  campos.forEach((campo) => {
     const elemento = document.getElementById(campo);
     if (elemento) {
       elemento.addEventListener('blur', validarCampo);
@@ -37,10 +38,7 @@ function validarCampo(e) {
   const campo = e.target;
   const errorElement = document.getElementById(`${campo.id}-error`);
 
-  // Limpiar error previo
-  if (errorElement) {
-    errorElement.style.display = 'none';
-  }
+  if (errorElement) errorElement.style.display = 'none';
 
   let valido = true;
   let mensaje = '';
@@ -54,16 +52,14 @@ function validarCampo(e) {
       break;
 
     case 'dni':
-      const dniRegex = /^\d{7,8}$/;
-      if (!dniRegex.test(campo.value)) {
+      if (!/^\d{7,8}$/.test(campo.value)) {
         mensaje = 'El DNI debe tener 7 u 8 dígitos';
         valido = false;
       }
       break;
 
     case 'email':
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(campo.value)) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(campo.value)) {
         mensaje = 'Por favor ingresa un email válido';
         valido = false;
       }
@@ -91,104 +87,119 @@ function validarCampo(e) {
 function limpiarError(e) {
   const campo = e.target;
   const errorElement = document.getElementById(`${campo.id}-error`);
-
-  if (errorElement) {
-    errorElement.style.display = 'none';
-  }
-
+  if (errorElement) errorElement.style.display = 'none';
   campo.classList.remove('error');
 }
 
-// Manejo del envío del formulario
-function manejarEnvioFormulario(e) {
+// =========================
+// Envío formulario
+// =========================
+async function manejarEnvioFormulario(e) {
   e.preventDefault();
 
   // Validar todos los campos
   const camposValidos = ['nombre', 'dni', 'email', 'carrera']
-    .map(campo => validarCampo({ target: document.getElementById(campo) }))
-    .every(valido => valido);
+    .map((campo) => validarCampo({ target: document.getElementById(campo) }))
+    .every((valido) => valido);
 
   if (!camposValidos) {
     mostrarMensaje('Por favor corrige los errores en el formulario', 'error');
     return;
   }
 
-  // Obtener los valores del formulario (normalizados)
+  // Obtener valores normalizados
   const nombre = document.getElementById('nombre').value.trim();
-  const dni = document.getElementById('dni').value.replace(/\D+/g, ''); // solo dígitos
+  const dni = document.getElementById('dni').value.replace(/\D+/g, '');
   const email = document.getElementById('email').value.trim();
-  const carrera = document.getElementById('carrera').value.toUpperCase(); // "2K"/"5K"
+  const carrera = document.getElementById('carrera').value.toUpperCase();
 
   // Mostrar estado de carga
   mostrarCarga(true);
 
   // Enviar datos al servidor
-  enviarDatosAlServidor({ nombre, dni, email, carrera });
+  await enviarDatosAlServidor({ nombre, dni, email, carrera });
 }
 
 async function enviarDatosAlServidor(datos) {
-  const API_URL = '/api/procesar.php'; // ruta ABSOLUTA a tu endpoint PHP
+  const API_URL = '/api/procesar.php';
 
   try {
     const res = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(datos)
+      body: JSON.stringify(datos),
     });
 
     const ct = res.headers.get('content-type') || '';
     const payload = ct.includes('application/json')
       ? await res.json()
-      : { success: false, message: await res.text() }; // si hubiera HTML por error
+      : { success: false, message: await res.text() };
 
-    // Ocultar spinner
     mostrarCarga(false);
 
     if (!res.ok || !payload.success) {
-      // Mensaje claro desde el backend (409 = DNI duplicado, etc.)
       const msg = payload.message || `Error ${res.status}: No se pudo registrar`;
       mostrarMensaje(msg, 'error');
       return;
     }
 
     // OK: generar QR con lo que devolvió la API
-    const qrData = payload.qr_data
-      || `ID: ${payload.inscripcion_id}\nNombre: ${datos.nombre}\nDNI: ${datos.dni}\nEmail: ${datos.email}\nCarrera: ${datos.carrera}`;
+    const qrData =
+      payload.qr_data ||
+      `ID: ${payload.inscripcion_id}\nNombre: ${datos.nombre}\nDNI: ${datos.dni}\nEmail: ${datos.email}\nCarrera: ${datos.carrera}`;
 
-    generarQR(qrData);
+    // Generar y esperar a que el canvas esté listo
+    await generarQR(qrData);
+
     mostrarMensaje('¡Inscripción exitosa! Tu QR ha sido generado.', 'success');
 
-    // Enviar el QR por email (PNG capturado del canvas)
-    await enviarQrPorEmail({
+    // Enviar el QR por email (PNG capturado del canvas, ya renderizado)
+    enviarQrPorEmail({
       email: datos.email,
       nombre: datos.nombre,
       dni: datos.dni,
       carrera: datos.carrera,
-      qrTexto: qrData
+      qrTexto: qrData,
     });
 
     // (Opcional) limpiar formulario
     document.getElementById('formulario').reset();
-
   } catch (err) {
     mostrarCarga(false);
     mostrarMensaje(`Error de red: ${err.message}`, 'error');
   }
 }
 
+// =========================
+// Carga visual
+// =========================
 function mostrarCarga(mostrar) {
   const loadingElement = document.getElementById('loading');
   const submitBtn = document.getElementById('submit-btn');
 
-  if (loadingElement) {
-    loadingElement.classList.toggle('hidden', !mostrar);
-  }
-
-  if (submitBtn) {
-    submitBtn.disabled = mostrar;
-  }
+  if (loadingElement) loadingElement.classList.toggle('hidden', !mostrar);
+  if (submitBtn) submitBtn.disabled = mostrar;
 }
 
+// =========================
+// QR helpers
+// =========================
+
+// Espera a que exista el <canvas> del QR y tenga dimensiones
+function waitForQrCanvas(timeoutMs = 5000) {
+  return new Promise((resolve, reject) => {
+    const t0 = Date.now();
+    (function poll() {
+      const canvas = document.querySelector('#qr canvas');
+      if (canvas && canvas.width && canvas.height) return resolve(canvas);
+      if (Date.now() - t0 > timeoutMs)
+        return reject(new Error('QR canvas no apareció a tiempo'));
+      requestAnimationFrame(poll);
+    })();
+  });
+}
+
+// Genera el QR y devuelve una promesa que se resuelve cuando el canvas está listo
 function generarQR(datos) {
   const qrContainer = document.getElementById('qr-container');
   const qrElement = document.getElementById('qr');
@@ -203,7 +214,7 @@ function generarQR(datos) {
     height: 200,
     colorDark: '#000000',
     colorLight: '#ffffff',
-    correctLevel: QRCode.CorrectLevel.H
+    correctLevel: QRCode.CorrectLevel.H,
   });
 
   // Mostrar contenedor QR
@@ -211,34 +222,29 @@ function generarQR(datos) {
 
   // Hacer scroll suave al QR
   qrContainer.scrollIntoView({ behavior: 'smooth' });
+
+  // Esperar a que el canvas se pinte
+  return waitForQrCanvas();
 }
 
 // Enviar el QR generado (canvas) por email al backend
 async function enviarQrPorEmail({ email, nombre, dni, carrera, qrTexto }) {
   try {
-    // Asegurar que el canvas ya esté renderizado
-    await new Promise(r => requestAnimationFrame(r));
-
-    const canvas = document.querySelector('#qr canvas');
-    if (!canvas) {
-      console.warn('No se encontró el canvas del QR.');
-      return;
-    }
-
+    const canvas = await waitForQrCanvas(); // asegurarse que está listo
     const qrPngDataUrl = canvas.toDataURL('image/png'); // "data:image/png;base64,..."
 
+    // ⚠️ Ajustá las claves si tu enviar_qr.php espera otras: p.ej. {to, name, qr_png_base64}
     const res = await fetch('/api/enviar_qr.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        to: email,
-        name: nombre,
+        email,          // o "to"
+        nombre,         // o "name"
         dni,
         carrera,
-        qr_png_base64: qrPngDataUrl,
-        // te dejo también el texto por si algún día querés usarlo en el cuerpo
-        qr_texto: qrTexto
-      })
+        qr_png: qrPngDataUrl, // o "qr_png_base64"
+        qr_texto: qrTexto,
+      }),
     });
 
     const ct = res.headers.get('content-type') || '';
@@ -256,9 +262,10 @@ async function enviarQrPorEmail({ email, nombre, dni, carrera, qrTexto }) {
   }
 }
 
+// =========================
+// Otros helpers
+// =========================
 function guardarInscripcion(datos) {
-  // En un entorno real, esto se guardaría en la base de datos
-  // Por ahora usamos localStorage para persistencia
   let inscripciones = JSON.parse(localStorage.getItem('inscripciones_maraton')) || [];
   inscripciones.push(datos);
   localStorage.setItem('inscripciones_maraton', JSON.stringify(inscripciones));
@@ -270,7 +277,6 @@ function descargarQR() {
     mostrarMensaje('No hay QR para descargar', 'error');
     return;
   }
-
   try {
     const image = canvas.toDataURL('image/png');
     const link = document.createElement('a');
@@ -292,18 +298,22 @@ function agregarACalendario() {
   const ubicacion = 'Plaza Central de Ituzaingó';
   const detalles = '¡No te pierdas la Maratón Anual de Ituzaingó! Inscripciones abiertas.';
 
-  // Formato para Google Calendar
   const startDate = new Date(fechaEvento).toISOString().replace(/-|:|\.\d+/g, '');
-  const endDate = new Date(new Date(fechaEvento).getTime() + 2 * 60 * 60 * 1000).toISOString().replace(/-|:|\.\d+/g, '');
+  const endDate = new Date(new Date(fechaEvento).getTime() + 2 * 60 * 60 * 1000)
+    .toISOString()
+    .replace(/-|:|\.\d+/g, '');
 
-  const googleCalendarUrl = `https://calendar.google.com/calendar/r/eventedit?text=${encodeURIComponent(titulo)}&dates=${startDate}/${endDate}&details=${encodeURIComponent(detalles)}&location=${encodeURIComponent(ubicacion)}`;
+  const googleCalendarUrl = `https://calendar.google.com/calendar/r/eventedit?text=${encodeURIComponent(
+    titulo
+  )}&dates=${startDate}/${endDate}&details=${encodeURIComponent(detalles)}&location=${encodeURIComponent(
+    ubicacion
+  )}`;
 
   window.open(googleCalendarUrl, '_blank');
 }
 
-// Función para mostrar mensajes de estado
+// Mensajes flotantes
 function mostrarMensaje(mensaje, tipo = 'info') {
-  // Crear elemento de mensaje si no existe
   let mensajeElement = document.getElementById('mensaje-global');
 
   if (!mensajeElement) {
@@ -320,8 +330,7 @@ function mostrarMensaje(mensaje, tipo = 'info') {
     document.body.appendChild(mensajeElement);
   }
 
-  // Establecer color según tipo
-  let colorFondo, colorTexto;
+  let colorFondo;
   switch (tipo) {
     case 'success':
       colorFondo = '#4caf50';
@@ -335,15 +344,13 @@ function mostrarMensaje(mensaje, tipo = 'info') {
     default:
       colorFondo = '#2196f3';
   }
-  colorTexto = '#ffffff';
 
   mensajeElement.style.backgroundColor = colorFondo;
-  mensajeElement.style.color = colorTexto;
+  mensajeElement.style.color = '#ffffff';
   mensajeElement.textContent = mensaje;
   mensajeElement.style.display = 'block';
   mensajeElement.style.opacity = '1';
 
-  // Ocultar después de 5 segundos
   setTimeout(() => {
     mensajeElement.style.opacity = '0';
     setTimeout(() => {
